@@ -183,9 +183,6 @@ personal-backlog/
 │   └── node_modules/
 ├── webapp/                               # Built output — ready to open or deploy
 │   └── index-style-v2.html              # Self-contained single-file SPA (~348 KB)
-└── design/
-    ├── design-v1/                        # V1 source (archived, vanilla JS)
-    └── archive/                          # Earlier prototypes
 ```
 
 ## Development
