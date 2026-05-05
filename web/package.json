@@ -1,0 +1,10 @@
+{
+  "name": "personal-backlog-bundler",
+  "version": "1.0.0",
+  "description": "Flattens design-v2 into a single self-contained HTML artifact",
+  "private": true,
+  "dependencies": {
+    "@babel/core": "^7.29.0",
+    "@babel/preset-react": "^7.28.5"
+  }
+}
