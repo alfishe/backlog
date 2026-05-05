@@ -4,6 +4,12 @@ A minimalist, single-user task manager where **a single Markdown file is your da
 
 No cloud. No accounts. No vendor lock-in. Your tasks live in a plain `backlog.md` file you can read, edit, and version-control with any tool you already use.
 
+*Main view*
+![Main view](doc/images/screenshot_01.png)
+
+*Edit existing task*
+![Edit existing task](doc/images/screenshot_02.png)
+
 ## Why Not Just Use...
 
 | Concern | Todoist / TickTick / Notion | This App |
