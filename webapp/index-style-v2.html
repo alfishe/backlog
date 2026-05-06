@@ -4975,10 +4975,97 @@ function Kpi({
     className: "kpi-vs"
   }, "vs prior")));
 }
+const ICON_STYLES = [{
+  value: 'color',
+  label: 'Color',
+  hint: 'Filled circles with semantic colors'
+}, {
+  value: 'flat',
+  label: 'Flat',
+  hint: 'Minimal monochrome SVG squares'
+}, {
+  value: 'emoji',
+  label: 'Emoji',
+  hint: 'Native emoji glyphs'
+}, {
+  value: 'ascii',
+  label: 'ASCII',
+  hint: 'Plain text glyphs: [ ] [/] [!] …'
+}];
+function AppearanceCard({
+  tweaks,
+  setTweak
+}) {
+  const current = tweaks?.status_style || 'color';
+  return /*#__PURE__*/React.createElement("section", {
+    className: "card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-head"
+  }, /*#__PURE__*/React.createElement("h3", null, "Appearance")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 6
+    }
+  }, ICON_STYLES.map(opt => /*#__PURE__*/React.createElement("label", {
+    key: opt.value,
+    style: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: 10,
+      padding: '7px 10px',
+      borderRadius: 8,
+      cursor: 'pointer',
+      background: current === opt.value ? 'var(--bg-2)' : 'transparent',
+      border: `1px solid ${current === opt.value ? 'var(--rule)' : 'transparent'}`
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "radio",
+    name: "icon-style",
+    value: opt.value,
+    checked: current === opt.value,
+    onChange: () => setTweak('status_style', opt.value),
+    style: {
+      accentColor: 'var(--accent)',
+      flexShrink: 0
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      gap: 5,
+      flexShrink: 0
+    }
+  }, ['open', 'in-progress', 'blocked', 'postponed', 'done', 'cancelled'].map(s => /*#__PURE__*/React.createElement(StatusStyleContext.Provider, {
+    key: s,
+    value: opt.value
+  }, /*#__PURE__*/React.createElement(StatusIcon, {
+    status: s,
+    size: 14
+  })))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 1
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 13,
+      fontWeight: 500,
+      color: 'var(--ink)'
+    }
+  }, opt.label), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 11.5,
+      color: 'var(--ink-3)'
+    }
+  }, opt.hint))))));
+}
 function AdminPage({
   data,
   onClose,
   history,
+  tweaks,
+  setTweak,
   onForceSave,
   onForceBackup,
   onCompact,
@@ -5074,6 +5161,9 @@ function AdminPage({
     dataStats: data.stats,
     mostActiveProject: data.stats.mostActiveProject,
     history: history
+  }), /*#__PURE__*/React.createElement(AppearanceCard, {
+    tweaks: tweaks,
+    setTweak: setTweak
   }), /*#__PURE__*/React.createElement("section", {
     className: "card"
   }, /*#__PURE__*/React.createElement("div", {
@@ -5207,12 +5297,13 @@ function loadLocalState() {
   }
 }
 
-// Only UI state (which rows are expanded) is persisted locally.
+// Only UI state (expanded rows, tweaks) is persisted locally.
 // Backlog data always lives in backlog.md — never in localStorage.
-function saveLocalState(expandedMap) {
+function saveLocalState(expandedMap, tweaks) {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify({
-      expandedMap
+      expandedMap,
+      tweaks
     }));
   } catch {/* quota / private mode */}
 }
@@ -5291,13 +5382,17 @@ function App() {
   const [itemDialog, setItemDialog] = useStateMain(null);
   const [confirm, setConfirm] = useStateMain(null);
   const [needsConnect, setNeedsConnect] = useStateMain(false);
-  const [tweaks, setTweak] = useTweaks({
+  const TWEAK_DEFAULTS = {
     accent_hue: 35,
     density: 'comfortable',
     show_ids: false,
     paper_texture: true,
     status_style: 'color',
     sort_mode: 'priority'
+  };
+  const [tweaks, setTweak] = useTweaks({
+    ...TWEAK_DEFAULTS,
+    ...(loadLocalState()?.tweaks ?? {})
   });
 
   // Refs for async callbacks that need latest state without stale closures.
@@ -5387,10 +5482,10 @@ function App() {
     };
   }, []);
 
-  // Persist expanded/collapsed row state locally. Data itself lives in backlog.md.
+  // Persist expanded/collapsed row state and tweaks locally. Data itself lives in backlog.md.
   useEffectMain(() => {
-    saveLocalState(latestExpandedMap.current);
-  }, [expandedMap]);
+    saveLocalState(latestExpandedMap.current, tweaks);
+  }, [expandedMap, tweaks]);
   const showToast = (msg, kind = 'ok') => {
     setToast({
       msg,
@@ -5457,7 +5552,7 @@ function App() {
           const cm = content.match(/checksum:\s*(sha256:[a-f0-9]+)/);
           if (cm) SyncPoller.lastChecksum = cm[1];
         }
-        saveLocalState(em);
+        saveLocalState(em, tweaks);
         isDirtyRef.current = false;
         const now = new Date().toISOString();
         setSaveState({
@@ -5974,6 +6069,8 @@ function App() {
   })))) : /*#__PURE__*/React.createElement(AdminPage, {
     data: data,
     history: data.history,
+    tweaks: tweaks,
+    setTweak: setTweak,
     onClose: () => setView('backlog'),
     onForceSave: () => triggerSave('Force-saved'),
     onForceBackup: () => triggerSave('Force-backed up'),

@@ -12,10 +12,10 @@ function loadLocalState() {
   } catch { return null; }
 }
 
-// Only UI state (which rows are expanded) is persisted locally.
+// Only UI state (expanded rows, tweaks) is persisted locally.
 // Backlog data always lives in backlog.md — never in localStorage.
-function saveLocalState(expandedMap) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify({ expandedMap })); } catch { /* quota / private mode */ }
+function saveLocalState(expandedMap, tweaks) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ expandedMap, tweaks })); } catch { /* quota / private mode */ }
 }
 
 // Empty starting state — used when there is no saved data and no seed data loaded.
@@ -57,14 +57,8 @@ function App() {
   const [confirm, setConfirm]       = useStateMain(null);
   const [needsConnect, setNeedsConnect] = useStateMain(false);
 
-  const [tweaks, setTweak] = useTweaks({
-    accent_hue:   35,
-    density:      'comfortable',
-    show_ids:     false,
-    paper_texture: true,
-    status_style: 'color',
-    sort_mode:    'priority',
-  });
+  const TWEAK_DEFAULTS = { accent_hue: 35, density: 'comfortable', show_ids: false, paper_texture: true, status_style: 'color', sort_mode: 'priority' };
+  const [tweaks, setTweak] = useTweaks({ ...TWEAK_DEFAULTS, ...(loadLocalState()?.tweaks ?? {}) });
 
   // Refs for async callbacks that need latest state without stale closures.
   const latestData        = useRefMain(data);
@@ -158,10 +152,10 @@ function App() {
     return () => { cancelled = true; SyncPoller.stop(); };
   }, []);
 
-  // Persist expanded/collapsed row state locally. Data itself lives in backlog.md.
+  // Persist expanded/collapsed row state and tweaks locally. Data itself lives in backlog.md.
   useEffectMain(() => {
-    saveLocalState(latestExpandedMap.current);
-  }, [expandedMap]);
+    saveLocalState(latestExpandedMap.current, tweaks);
+  }, [expandedMap, tweaks]);
 
   const showToast = (msg, kind = 'ok') => {
     setToast({ msg, kind, t: Date.now() });
@@ -222,7 +216,7 @@ function App() {
           const cm = content.match(/checksum:\s*(sha256:[a-f0-9]+)/);
           if (cm) SyncPoller.lastChecksum = cm[1];
         }
-        saveLocalState(em);
+        saveLocalState(em, tweaks);
         isDirtyRef.current = false;
         const now = new Date().toISOString();
         setSaveState({ status: 'saved', lastSaved: now });
@@ -618,6 +612,8 @@ function App() {
         <AdminPage
           data={data}
           history={data.history}
+          tweaks={tweaks}
+          setTweak={setTweak}
           onClose={() => setView('backlog')}
           onForceSave={() => triggerSave('Force-saved')}
           onForceBackup={() => triggerSave('Force-backed up')}
