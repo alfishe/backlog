@@ -399,7 +399,50 @@ function Kpi({ label, value, delta, unit, accent, deltaInverse }) {
   );
 }
 
-function AdminPage({ data, onClose, history, onForceSave, onForceBackup, onCompact, onRestore, onDownloadBackup }) {
+const ICON_STYLES = [
+  { value: 'color', label: 'Color',  hint: 'Filled circles with semantic colors' },
+  { value: 'flat',  label: 'Flat',   hint: 'Minimal monochrome SVG squares' },
+  { value: 'emoji', label: 'Emoji',  hint: 'Native emoji glyphs' },
+  { value: 'ascii', label: 'ASCII',  hint: 'Plain text glyphs: [ ] [/] [!] …' },
+];
+
+function AppearanceCard({ tweaks, setTweak }) {
+  const current = tweaks?.status_style || 'color';
+  return (
+    <section className="card">
+      <div className="card-head"><h3>Appearance</h3></div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {ICON_STYLES.map(opt => (
+          <label key={opt.value}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '7px 10px', borderRadius: 8, cursor: 'pointer',
+              background: current === opt.value ? 'var(--bg-2)' : 'transparent',
+              border: `1px solid ${current === opt.value ? 'var(--rule)' : 'transparent'}`,
+            }}>
+            <input type="radio" name="icon-style" value={opt.value}
+              checked={current === opt.value}
+              onChange={() => setTweak('status_style', opt.value)}
+              style={{ accentColor: 'var(--accent)', flexShrink: 0 }}/>
+            <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+              {['open','in-progress','blocked','postponed','done','cancelled'].map(s => (
+                <StatusStyleContext.Provider key={s} value={opt.value}>
+                  <StatusIcon status={s} size={14}/>
+                </StatusStyleContext.Provider>
+              ))}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--ink)' }}>{opt.label}</span>
+              <span style={{ fontSize: 11.5, color: 'var(--ink-3)' }}>{opt.hint}</span>
+            </div>
+          </label>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function AdminPage({ data, onClose, history, tweaks, setTweak, onForceSave, onForceBackup, onCompact, onRestore, onDownloadBackup }) {
   const [previewBackup, setPreviewBackup] = useState(null);
 
   const counts = countByStatus(data.entries);
@@ -489,6 +532,9 @@ function AdminPage({ data, onClose, history, onForceSave, onForceBackup, onCompa
 
         {/* Stats overview */}
         <StatsOverview dataStats={data.stats} mostActiveProject={data.stats.mostActiveProject} history={history}/>
+
+        {/* Appearance */}
+        <AppearanceCard tweaks={tweaks} setTweak={setTweak}/>
 
         {/* Status mix */}
         <section className="card">
