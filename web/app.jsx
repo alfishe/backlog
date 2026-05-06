@@ -93,6 +93,12 @@ function App() {
 
         if (mode === 'local') { setIsLoading(false); return; }
 
+        if (mode === 'browser') {
+          if (cancelled) return;
+          await applyStorageData(mode, () => cancelled);
+          return;
+        }
+
         if (mode === 'direct') {
           // Try silent reconnect — works if permission is still active from a previous session.
           const ok = await Storage.tryAutoConnect();
@@ -534,6 +540,16 @@ function App() {
         </div>
       )}
 
+      {storageMode === 'browser' && (
+        <div className="banner info" style={{gap:8}}>
+          <Icon name="folder" size={14}/>
+          <span>
+            Data saved in <strong>browser storage</strong> — persists until you clear site data.{' '}
+            Use <em>Import/Export</em> to back up to a file.
+          </span>
+        </div>
+      )}
+
       {needsConnect && (
         <div className="banner info">
           <Icon name="folder" size={14}/>
@@ -762,7 +778,7 @@ function ViewChips({ filters, setFilters }) {
 
 // ----- Header -----
 function Header({ view, setView, saveState, saveLabel, storageMode, searchValue, onSearch, onOpenImportExport }) {
-  const modeIcon = storageMode === 'api' ? '⚡' : storageMode === 'direct' ? '📁' : '💾';
+  const modeIcon = storageMode === 'api' ? '⚡' : storageMode === 'direct' ? '📁' : storageMode === 'browser' ? '🌐' : '💾';
   return (
     <header className="header">
       <div className="brand">

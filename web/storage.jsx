@@ -351,6 +351,159 @@ const DirectBackend = {
   },
 };
 
+// ---- Browser Storage Backend (IndexedDB + Storage Persistence API) ----
+// Fallback for browsers without File System Access API (Firefox, Safari)
+const BrowserStorageBackend = {
+  _DB_NAME: 'pb-browser-storage',
+  _STORE: 'data',
+  _CONTENT_KEY: 'backlog',
+  _BACKUPS_KEY: 'backups',
+  _MAX_BACKUPS: 10,
+  _persistenceRequested: false,
+  _persistenceGranted: null,
+
+  async detect() {
+    return typeof indexedDB !== 'undefined';
+  },
+
+  _openDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(this._DB_NAME, 1);
+      req.onupgradeneeded = e => e.target.result.createObjectStore(this._STORE);
+      req.onsuccess = e => resolve(e.target.result);
+      req.onerror = () => reject(req.error);
+    });
+  },
+
+  async _get(key) {
+    const db = await this._openDB();
+    return new Promise(resolve => {
+      const tx = db.transaction(this._STORE, 'readonly');
+      const get = tx.objectStore(this._STORE).get(key);
+      get.onsuccess = () => resolve(get.result);
+      get.onerror = () => resolve(null);
+    });
+  },
+
+  async _set(key, value) {
+    const db = await this._openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(this._STORE, 'readwrite');
+      tx.objectStore(this._STORE).put(value, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  },
+
+  async load() {
+    try {
+      const content = await this._get(this._CONTENT_KEY) || '';
+      return { content, checksum: '' };
+    } catch {
+      return { content: '', checksum: '' };
+    }
+  },
+
+  async save(content) {
+    // Request persistence on first save (triggered by user action = valid gesture)
+    if (!this._persistenceRequested) {
+      this._persistenceRequested = true;
+      this._requestPersistence();
+    }
+
+    try {
+      // Create backup before saving
+      const oldContent = await this._get(this._CONTENT_KEY);
+      if (oldContent) {
+        await this._addBackup(oldContent);
+      }
+
+      await this._set(this._CONTENT_KEY, content);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  },
+
+  async _requestPersistence() {
+    if (navigator.storage?.persist) {
+      try {
+        const alreadyPersisted = await navigator.storage.persisted();
+        if (alreadyPersisted) {
+          this._persistenceGranted = true;
+          return;
+        }
+        // This will prompt the user in Firefox
+        this._persistenceGranted = await navigator.storage.persist();
+      } catch {
+        this._persistenceGranted = false;
+      }
+    }
+  },
+
+  async _addBackup(content) {
+    try {
+      const backups = (await this._get(this._BACKUPS_KEY)) || [];
+      const ts = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      backups.unshift({
+        name: `backlog_${ts}.md`,
+        content,
+        timestamp: new Date().toISOString(),
+        size: new TextEncoder().encode(content).length,
+      });
+      // Keep only last N backups
+      if (backups.length > this._MAX_BACKUPS) {
+        backups.length = this._MAX_BACKUPS;
+      }
+      await this._set(this._BACKUPS_KEY, backups);
+    } catch { /* backup failure is non-fatal */ }
+  },
+
+  async listBackups() {
+    try {
+      const backups = (await this._get(this._BACKUPS_KEY)) || [];
+      return backups.map(b => ({
+        name: b.name,
+        size: b.size,
+        timestamp: b.timestamp,
+        valid: b.content?.includes('<!-- SECTION: INTEGRITY -->'),
+      }));
+    } catch {
+      return [];
+    }
+  },
+
+  async restoreBackup(name) {
+    try {
+      const backups = (await this._get(this._BACKUPS_KEY)) || [];
+      const backup = backups.find(b => b.name === name);
+      if (!backup) return { ok: false, error: 'Backup not found' };
+      await this._set(this._CONTENT_KEY, backup.content);
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
+  },
+
+  async getHealthInfo() {
+    try {
+      const content = await this._get(this._CONTENT_KEY) || '';
+      const estimate = await navigator.storage?.estimate?.() || {};
+      const persisted = await navigator.storage?.persisted?.() || false;
+      return {
+        masterSize: new TextEncoder().encode(content).length,
+        statsSize: 0,
+        browserStorage: true,
+        persisted,
+        quota: estimate.quota,
+        usage: estimate.usage,
+      };
+    } catch {
+      return { masterSize: 0, statsSize: 0, browserStorage: true, persisted: false };
+    }
+  },
+};
+
 // ---- Storage — detect backend and delegate ----
 const Storage = {
   backend: null,
@@ -366,6 +519,11 @@ const Storage = {
       this.backend = DirectBackend;
       this.mode    = 'direct';
       return 'direct';
+    }
+    if (await BrowserStorageBackend.detect()) {
+      this.backend = BrowserStorageBackend;
+      this.mode    = 'browser';
+      return 'browser';
     }
     this.mode = 'local';
     return 'local';
@@ -500,6 +658,7 @@ async function buildDataFromStorage(parsed, backups, storageMode, sizeInfo = {})
   const historySize   = new TextEncoder().encode(JSON.stringify(history)).length;
   const modeLabel     = storageMode === 'api' ? 'API server'
                       : storageMode === 'direct' ? 'Direct (File System API)'
+                      : storageMode === 'browser' ? 'Browser storage (IndexedDB)'
                       : 'localStorage only';
 
   return {
@@ -537,6 +696,7 @@ Object.assign(window, {
   Parser,
   ApiBackend,
   DirectBackend,
+  BrowserStorageBackend,
   Storage,
   SyncPoller,
   buildDataFromStorage,
