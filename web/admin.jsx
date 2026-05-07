@@ -406,11 +406,30 @@ const ICON_STYLES = [
   { value: 'ascii', label: 'ASCII',  hint: 'Plain text glyphs: [ ] [/] [!] …' },
 ];
 
+const THEMES = [
+  { value: 'system', label: 'System', hint: 'Follow OS light / dark setting' },
+  { value: 'light',  label: 'Light',  hint: 'Always light' },
+  { value: 'dark',   label: 'Dark',   hint: 'Always dark' },
+];
+
 function AppearanceCard({ tweaks, setTweak }) {
   const current = tweaks?.status_style || 'color';
+  const theme   = tweaks?.theme || 'system';
   return (
     <section className="card">
       <div className="card-head"><h3>Appearance</h3></div>
+      <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '4px 0 6px' }}>Theme</div>
+      <div className="seg" style={{ marginBottom: 14 }}>
+        {THEMES.map(t => (
+          <button key={t.value}
+            className={`seg-btn ${theme === t.value ? 'active' : ''}`}
+            title={t.hint}
+            onClick={() => setTweak('theme', t.value)}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '4px 0 6px' }}>Status icons</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {ICON_STYLES.map(opt => (
           <label key={opt.value}

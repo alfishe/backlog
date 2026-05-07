@@ -55,6 +55,53 @@
 }
 html[data-density="compact"] { --row-h: 28px; --row-pad-y: 4px; }
 
+/* ---------- Dark theme ---------- */
+html[data-theme="dark"] {
+  --bg:        oklch(0.19 0.008 60);
+  --bg-2:      oklch(0.23 0.009 60);
+  --paper:     oklch(0.215 0.008 60);
+  --ink:       oklch(0.93 0.006 70);
+  --ink-2:     oklch(0.74 0.006 70);
+  --ink-3:     oklch(0.56 0.008 70);
+  --rule:      oklch(0.32 0.012 70);
+  --rule-2:    oklch(0.27 0.010 70);
+
+  --status-open:      oklch(0.72 0.008 60);
+  --status-progress:  oklch(0.68 0.13 220);
+  --status-blocked:   oklch(0.66 0.16 25);
+  --status-postponed: oklch(0.74 0.14 60);
+  --status-done:      oklch(0.66 0.12 145);
+  --status-cancelled: oklch(0.55 0.012 60);
+
+  --warn:    oklch(0.78 0.13 80);
+  --warn-bg: oklch(0.30 0.06 80);
+  --ok:      oklch(0.7 0.12 145);
+  --danger:  oklch(0.66 0.16 25);
+  --danger-soft: oklch(0.66 0.16 25 / 0.14);
+
+  --shadow-1:  0 1px 0 oklch(0 0 0 / 0.4);
+  --shadow-2:  0 1px 2px oklch(0 0 0 / 0.4), 0 4px 14px oklch(0 0 0 / 0.35);
+  --shadow-pop: 0 8px 24px oklch(0 0 0 / 0.55), 0 2px 6px oklch(0 0 0 / 0.45);
+}
+html[data-theme="dark"] .header        { background: oklch(0.19 0.008 60 / 0.86); }
+html[data-theme="dark"] .row:hover     { background: oklch(0.27 0.010 60 / 0.6); }
+html[data-theme="dark"] .btn-primary:hover:not(:disabled),
+html[data-theme="dark"] .row-btn.primary:hover { background: oklch(0.85 0.008 70); color: var(--bg); }
+html[data-theme="dark"] .banner.info   { background: oklch(0.30 0.06 220); color: oklch(0.85 0.04 220); }
+html[data-theme="dark"][data-paper="true"] body {
+  background-image: radial-gradient(oklch(0.55 0.008 70 / 0.18) 1px, transparent 1px);
+}
+html[data-theme="dark"] .restore-warn {
+  background: oklch(0.28 0.06 80);
+  border-color: oklch(0.45 0.10 80 / 0.6);
+  color: oklch(0.85 0.06 75);
+}
+html[data-theme="dark"] .restore-warn svg { color: oklch(0.78 0.13 70); }
+html[data-theme="dark"] .restore-warn-title { color: oklch(0.92 0.05 75); }
+html[data-theme="dark"] .restore-warn-body  { color: oklch(0.78 0.04 70); }
+html[data-theme="dark"] .restore-warn-body code { background: oklch(0 0 0 / 0.30); }
+html[data-theme="dark"] .drag-handle { color: oklch(0.50 0.005 60); }
+
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; height: 100%; }
 body {
@@ -5162,16 +5209,58 @@ const ICON_STYLES = [{
   label: 'ASCII',
   hint: 'Plain text glyphs: [ ] [/] [!] …'
 }];
+const THEMES = [{
+  value: 'system',
+  label: 'System',
+  hint: 'Follow OS light / dark setting'
+}, {
+  value: 'light',
+  label: 'Light',
+  hint: 'Always light'
+}, {
+  value: 'dark',
+  label: 'Dark',
+  hint: 'Always dark'
+}];
 function AppearanceCard({
   tweaks,
   setTweak
 }) {
   const current = tweaks?.status_style || 'color';
+  const theme = tweaks?.theme || 'system';
   return /*#__PURE__*/React.createElement("section", {
     className: "card"
   }, /*#__PURE__*/React.createElement("div", {
     className: "card-head"
   }, /*#__PURE__*/React.createElement("h3", null, "Appearance")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: 'var(--ink-3)',
+      textTransform: 'uppercase',
+      letterSpacing: '0.04em',
+      margin: '4px 0 6px'
+    }
+  }, "Theme"), /*#__PURE__*/React.createElement("div", {
+    className: "seg",
+    style: {
+      marginBottom: 14
+    }
+  }, THEMES.map(t => /*#__PURE__*/React.createElement("button", {
+    key: t.value,
+    className: `seg-btn ${theme === t.value ? 'active' : ''}`,
+    title: t.hint,
+    onClick: () => setTweak('theme', t.value)
+  }, t.label))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: 11.5,
+      fontWeight: 600,
+      color: 'var(--ink-3)',
+      textTransform: 'uppercase',
+      letterSpacing: '0.04em',
+      margin: '4px 0 6px'
+    }
+  }, "Status icons"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: 'flex',
       flexDirection: 'column',
@@ -5558,7 +5647,8 @@ function App() {
     show_ids: false,
     paper_texture: true,
     status_style: 'color',
-    sort_mode: 'priority'
+    sort_mode: 'priority',
+    theme: 'system'
   };
   const [tweaks, setTweak] = useTweaks({
     ...TWEAK_DEFAULTS,
@@ -5582,6 +5672,17 @@ function App() {
     document.documentElement.dataset.showIds = tweaks.show_ids ? 'true' : 'false';
     document.documentElement.dataset.paper = tweaks.paper_texture ? 'true' : 'false';
   }, [tweaks]);
+  useEffectMain(() => {
+    const apply = () => {
+      const t = tweaks.theme === 'system' ? window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light' : tweaks.theme;
+      document.documentElement.dataset.theme = t;
+    };
+    apply();
+    if (tweaks.theme !== 'system') return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, [tweaks.theme]);
 
   // ---- Storage initialisation (runs once on mount) ----
   useEffectMain(() => {

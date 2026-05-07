@@ -57,7 +57,7 @@ function App() {
   const [confirm, setConfirm]       = useStateMain(null);
   const [needsConnect, setNeedsConnect] = useStateMain(false);
 
-  const TWEAK_DEFAULTS = { accent_hue: 35, density: 'comfortable', show_ids: false, paper_texture: true, status_style: 'color', sort_mode: 'priority' };
+  const TWEAK_DEFAULTS = { accent_hue: 35, density: 'comfortable', show_ids: false, paper_texture: true, status_style: 'color', sort_mode: 'priority', theme: 'system' };
   const [tweaks, setTweak] = useTweaks({ ...TWEAK_DEFAULTS, ...(loadLocalState()?.tweaks ?? {}) });
 
   // Refs for async callbacks that need latest state without stale closures.
@@ -75,6 +75,20 @@ function App() {
     document.documentElement.dataset.showIds  = tweaks.show_ids ? 'true' : 'false';
     document.documentElement.dataset.paper    = tweaks.paper_texture ? 'true' : 'false';
   }, [tweaks]);
+
+  useEffectMain(() => {
+    const apply = () => {
+      const t = tweaks.theme === 'system'
+        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : tweaks.theme;
+      document.documentElement.dataset.theme = t;
+    };
+    apply();
+    if (tweaks.theme !== 'system') return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    mq.addEventListener('change', apply);
+    return () => mq.removeEventListener('change', apply);
+  }, [tweaks.theme]);
 
   // ---- Storage initialisation (runs once on mount) ----
   useEffectMain(() => {
