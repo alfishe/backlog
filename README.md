@@ -42,7 +42,7 @@ The server creates `backlog.md`, `backups/`, and `stats.jsonl` in its own direct
 python3 server/server.py --port 8080 --dir ~/my-backlog
 ```
 
-### Option B: Standalone HTML (Chrome / Edge only)
+### Option B: Standalone HTML (Chrome / Edge — file system; Firefox / Safari — IndexedDB)
 
 No Python needed. Just open the HTML file:
 
@@ -58,6 +58,8 @@ cd webapp && python3 -m http.server 3000
 ```
 
 On first launch, the browser will prompt you to **select a folder**. This is required because browsers can't access your filesystem without explicit permission. Create a folder (or pick an existing one) and the app will create `backlog.md`, `backups/`, and `stats.jsonl` inside it.
+
+Firefox and Safari don't support the File System Access API, so the app can't read/write files on your disk directly. Instead it automatically falls back to **IndexedDB** (browser-local storage) — fully read-write, with backups and history preserved across reloads. Use the Import/Export dialog to move data between IndexedDB and a portable `.md` file at any time.
 
 ## How It Works
 
@@ -103,19 +105,24 @@ You can edit this file in any text editor. The app detects external changes and 
 - **Stats & metrics** — items created/completed, avg time in-progress, most active project — all from real history data
 - **Import/Export** — Markdown or JSON, with checksum validation
 - **Admin page** — health monitoring, backup browser, stats overview, manual actions
+- **Dark mode** — system / light / dark, configurable in Admin → Appearance; persisted across reloads
+- **Icon sets** — 4 styles (Color, Flat, Emoji, ASCII), configurable in Admin → Appearance; persisted across reloads
+- **Chrome / Edge direct file access** — reads and writes `backlog.md` on disk directly via the File System Access API; no server needed
+- **Firefox / Safari support** — full read-write via IndexedDB when File System Access API is unavailable; export to `.md`/`.json` anytime to get a portable file
 
 ## Two Storage Modes
 
 The app detects which mode to use automatically:
 
-| | API Server | Direct File Access |
-|---|---|---|
-| **How to start** | Run `python3 server/server.py` | Open `webapp/index-style-v2.html` in Chrome/Edge |
-| **Works in** | Any browser | Chrome, Edge only |
-| **File access via** | HTTP REST API | File System Access API |
-| **Folder picker** | Not needed | Required on first launch |
-| **LAN access** | Yes (phone, tablet) | No (local browser only) |
-| **Admin shows paths** | Yes (full path) | Folder name only |
+| | API Server | Direct File Access | IndexedDB fallback |
+|---|---|---|---|
+| **How to start** | Run `python3 server/server.py` | Open `webapp/index-style-v2.html` in Chrome/Edge | Open in Firefox / Safari |
+| **Works in** | Any browser | Chrome, Edge only | Firefox, Safari |
+| **Storage via** | HTTP REST API | File System Access API | IndexedDB (browser-local) |
+| **Folder picker** | Not needed | Required on first launch | Not needed |
+| **Saves to disk** | Yes — plain `.md` file | Yes — plain `.md` file | No — browser storage only |
+| **LAN access** | Yes (phone, tablet) | No (local browser only) | No |
+| **Admin shows paths** | Yes (full path) | Folder name only | — |
 
 ### Why the Folder Picker? (Direct Mode)
 
@@ -188,7 +195,7 @@ personal-backlog/
 │   ├── package.json                      # @babel/core + @babel/preset-react
 │   └── node_modules/
 ├── webapp/                               # Built output — ready to open or deploy
-│   └── index-style-v2.html              # Self-contained single-file SPA (~348 KB)
+│   └── index-style-v2.html              # Self-contained single-file SPA (~361 KB)
 ```
 
 ## Development
